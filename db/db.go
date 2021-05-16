@@ -3,7 +3,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 
 	_ "github.com/lib/pq"
 )
@@ -31,5 +34,25 @@ func Initialize(username, password, database string) (Database, error) {
 		return db, err
 	}
 	log.Println("Database connection established")
+	createTablesIfNotExists(db)
 	return db, nil
+}
+
+func createTablesIfNotExists(db Database) error {
+	log.Printf("Apply create tables migration")
+	pwd, _ := os.Getwd()
+	path := filepath.Join(pwd, "000001_create_tables.up.sql")
+
+	c, ioErr := ioutil.ReadFile(path)
+	if ioErr != nil {
+		log.Printf("Error while reading migration file: %s", ioErr)
+		return ioErr
+	}
+	sql := string(c)
+	_, err := db.Conn.Exec(sql)
+	if err != nil {
+		log.Printf("Error while executing migration: %s", err)
+		return err
+	}
+	return nil
 }
